@@ -12,6 +12,8 @@ import { supabaseBrowser } from "@/lib/supabase/client";
 // for every sign-in after the first.
 export function SignInForm({ next = "/groups" }: { next?: string }) {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -23,6 +25,7 @@ export function SignInForm({ next = "/groups" }: { next?: string }) {
     e.preventDefault();
     setErr(null);
     if (!email.trim() || password.length < 6) return;
+    if (mode === "signup" && !firstName.trim()) return;
     setBusy(true);
     const supabase = supabaseBrowser();
 
@@ -34,10 +37,14 @@ export function SignInForm({ next = "/groups" }: { next?: string }) {
         return;
       }
     } else {
+      const fullName = [firstName.trim(), lastName.trim()].filter(Boolean).join(" ");
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
-        options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}` },
+        options: {
+          data: { first_name: firstName.trim(), last_name: lastName.trim(), full_name: fullName },
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+        },
       });
       setBusy(false);
       if (error) {
@@ -73,6 +80,22 @@ export function SignInForm({ next = "/groups" }: { next?: string }) {
           Create account
         </button>
       </div>
+
+      {mode === "signup" && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <label className="field">
+            <span className="lb">First name</span>
+            <input type="text" required autoComplete="given-name" placeholder="Dinkar" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+          </label>
+          <label className="field">
+            <span className="lb">
+              Last name <span className="muted">(optional)</span>
+            </span>
+            <input type="text" autoComplete="family-name" placeholder="Maharjan" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+          </label>
+        </div>
+      )}
+
       <label className="field">
         <span className="lb">Email</span>
         <input type="email" required autoComplete="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />

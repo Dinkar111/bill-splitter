@@ -108,7 +108,7 @@ h1, h2, h3 { font-family: var(--f-display); letter-spacing: 0.5px; }
 
 .field { display: block; margin-bottom: 13px; }
 .field .lb { display: block; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-soft); font-weight: 700; margin-bottom: 6px; }
-.inp, input[type="text"], input[type="number"], input[type="date"], input[type="email"], input[type="url"], select, textarea {
+.inp, input[type="text"], input[type="number"], input[type="date"], input[type="email"], input[type="url"], input[type="password"], input[type="tel"], select, textarea {
   width: 100%; padding: 12px 13px; border: 1.5px solid var(--line); border-radius: 11px;
   background: var(--surface); color: var(--ink); font-size: 15px;
 }
