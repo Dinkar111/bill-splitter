@@ -1,16 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { supabaseServer } from "@/lib/supabase/server";
+import { getAuthedUser, supabaseServer } from "@/lib/supabase/server";
 import { CreateOrJoinGroup } from "@/components/CreateOrJoinGroup";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { signOut } from "@/lib/actions";
 
 export default async function GroupsPage() {
-  const supabase = await supabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthedUser();
   if (!user) redirect("/");
+  const supabase = await supabaseServer();
 
   // Two plain queries rather than an embedded/joined select — simpler to keep
   // correctly typed against the hand-written Database type (no generated

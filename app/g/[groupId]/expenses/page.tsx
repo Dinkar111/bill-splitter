@@ -1,15 +1,13 @@
 import { redirect } from "next/navigation";
-import { supabaseServer } from "@/lib/supabase/server";
+import { getAuthedUser, supabaseServer } from "@/lib/supabase/server";
 import { getGroupExpenses, getMyMembership } from "@/lib/data";
 import { ExpensesList } from "@/components/ExpensesList";
 
 export default async function ExpensesPage({ params }: { params: Promise<{ groupId: string }> }) {
   const { groupId } = await params;
-  const supabase = await supabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthedUser();
   if (!user) redirect("/");
+  const supabase = await supabaseServer();
 
   const [expenses, membership] = await Promise.all([getGroupExpenses(supabase, groupId), getMyMembership(supabase, groupId, user.id)]);
 

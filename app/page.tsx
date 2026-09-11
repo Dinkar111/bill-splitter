@@ -3,7 +3,7 @@ import { EnvSetupNotice } from "@/components/EnvSetupNotice";
 import { SignInForm } from "@/components/SignInForm";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { supabaseEnv } from "@/lib/supabase/env";
-import { supabaseServer } from "@/lib/supabase/server";
+import { getAuthedUser } from "@/lib/supabase/server";
 
 export default async function HomePage() {
   try {
@@ -12,10 +12,7 @@ export default async function HomePage() {
     return <EnvSetupNotice />;
   }
 
-  const supabase = await supabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthedUser();
   if (user) redirect("/groups");
 
   return (

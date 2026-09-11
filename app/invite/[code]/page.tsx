@@ -1,13 +1,10 @@
 import { redirect } from "next/navigation";
-import { supabaseServer } from "@/lib/supabase/server";
+import { getAuthedUser, supabaseServer } from "@/lib/supabase/server";
 import { SignInForm } from "@/components/SignInForm";
 
 export default async function InvitePage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;
-  const supabase = await supabaseServer();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getAuthedUser();
 
   if (!user) {
     return (
@@ -19,6 +16,7 @@ export default async function InvitePage({ params }: { params: Promise<{ code: s
     );
   }
 
+  const supabase = await supabaseServer();
   const { data, error } = await supabase.rpc("redeem_invite", { p_code: code });
   if (error) {
     return (
