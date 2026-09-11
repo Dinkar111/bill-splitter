@@ -20,7 +20,7 @@ export function EnvSetupNotice() {
           On Vercel, add the same two variables under Project Settings → Environment Variables, then redeploy.
         </li>
       </ol>
-      <p className="muted">Full walkthrough, including Google sign-in setup, is in SETUP.md.</p>
+      <p className="muted">Full walkthrough is in SETUP.md.</p>
     </div>
   );
 }

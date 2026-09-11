@@ -23,30 +23,14 @@ see `npx tsx lib/calc.test.ts`.
 
 ---
 
-## 2. Turn on sign-in methods
+## 2. Turn on sign-in
 
-**Magic link (email)** — works immediately, nothing to configure. Supabase
-sends the email itself on its shared sending domain (fine for trying this out;
-for real use later, Authentication → Settings → SMTP lets you use your own).
+Sign-in is **email magic link only** — no Google, no password. Type your
+email, get a link, click it. Works immediately, nothing to configure: Supabase
+sends the email itself on its shared sending domain (fine for personal use;
+if you ever want your own sending domain, Authentication → Settings → SMTP).
 
-**Google sign-in** — needs a one-time OAuth client:
-
-1. Go to <https://console.cloud.google.com/apis/credentials> (create a project
-   if you don't have one).
-2. **Create credentials → OAuth client ID** → Application type **Web application**.
-3. Under **Authorized redirect URIs**, add your Supabase callback URL:
-   `https://xxxxxxxx.supabase.co/auth/v1/callback` (find the exact one on the
-   Google provider screen in step 5 below — Supabase shows it for you).
-4. Save — you get a **Client ID** and **Client Secret**.
-5. In Supabase: **Authentication → Sign In / Providers → Google** → toggle it
-   on → paste the Client ID and Client Secret → **Save**.
-
-Without step 5, Google sign-in fails with `Unsupported provider: provider is
-not enabled` — that error means only that this toggle hasn't been flipped yet,
-nothing is wrong with the app. Magic link works either way, so you can test
-with that first.
-
-**Also required either way:** **Authentication → URL Configuration**:
+**Required:** **Authentication → URL Configuration**:
 - **Site URL**: your deployed URL (e.g. `https://splittab.vercel.app`)
 - **Redirect URLs**: add `https://splittab.vercel.app/auth/callback` and, for
   local development, `http://localhost:3000/auth/callback`
@@ -91,7 +75,7 @@ To update later: push to the repo — Vercel redeploys automatically.
 
 ## First run
 
-1. Sign in (Google or magic link).
+1. Sign in with the magic link emailed to you.
 2. **New group** — name it, pick a currency.
 3. **Members → + Invite link** → send it to your friends. They sign in and
    land in the group automatically. You can also **add a member without an

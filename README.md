@@ -2,7 +2,7 @@
 
 Split group bills by what each person actually ordered — item-level splitting,
 proportional discounts, VAT/service charge, multiple payers, and an automatic
-minimum-transfer settlement. Real accounts (Google / magic link) and multiple
+minimum-transfer settlement. Real accounts (email magic link) and multiple
 groups with invite links, self-hosted per deployer on your own Supabase project.
 
 **Start here: [SETUP.md](./SETUP.md)** — creating the Supabase project, enabling
