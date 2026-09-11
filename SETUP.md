@@ -25,17 +25,25 @@ see `npx tsx lib/calc.test.ts`.
 
 ## 2. Turn on sign-in
 
-Sign-in is **email magic link only** — no Google, no password. Type your
-email, get a link, click it. Works immediately, nothing to configure: Supabase
-sends the email itself on its shared sending domain (fine for personal use;
-if you ever want your own sending domain, Authentication → Settings → SMTP).
+Sign-in is **email + password** — no Google, no magic link. The obvious
+alternatives both hit a wall for a personal deployment: a clickable magic
+link is prone to mail apps (Gmail, Outlook, iOS Mail "link protection")
+pre-fetching it to scan for safety, which silently spends the one-time token
+before you ever click it (`otp_expired`); a typed one-time code needs the
+email template edited to show `{{ .Token }}`, which Supabase locks behind
+setting up your own custom SMTP provider. Password sidesteps both — no email
+step at all after the first sign-up.
 
-**Required:** **Authentication → URL Configuration**:
-- **Site URL**: your deployed URL (e.g. `https://splittab.vercel.app`)
-- **Redirect URLs**: add `https://splittab.vercel.app/auth/callback` and, for
-  local development, `http://localhost:3000/auth/callback`
+**Recommended — skip the confirmation email too:**
+**Authentication → Providers → Email** → turn **Confirm email** off. Without
+this, creating an account sends a confirmation link (same pre-fetch risk as
+above, just once). With it off, **Create account** signs you in immediately.
+Fine for a personal deployment behind an invite-only group model; the account
+still requires a password to sign into.
 
-Without these, sign-in redirects can be rejected or bounce to the wrong place.
+**Required either way:** **Authentication → URL Configuration → Site URL** —
+set it to your deployed URL (e.g. `https://splittab.vercel.app`;
+`http://localhost:3000` while developing).
 
 ---
 
@@ -66,8 +74,8 @@ npm run dev
 1. Push this folder to a GitHub repo.
 2. <https://vercel.com/new> → import the repo.
 3. Add the same two env vars under **Project Settings → Environment Variables**.
-4. Deploy. Update the Supabase **Site URL** / **Redirect URLs** (step 2) to
-   match the real Vercel URL once you have it.
+4. Deploy. Update the Supabase **Site URL** (step 2) to match the real Vercel
+   URL once you have it.
 
 To update later: push to the repo — Vercel redeploys automatically.
 
@@ -75,7 +83,8 @@ To update later: push to the repo — Vercel redeploys automatically.
 
 ## First run
 
-1. Sign in with the magic link emailed to you.
+1. **Create account** with an email + password, then you're straight in
+   (or check your email to confirm first, if you left that setting on).
 2. **New group** — name it, pick a currency.
 3. **Members → + Invite link** → send it to your friends. They sign in and
    land in the group automatically. You can also **add a member without an
