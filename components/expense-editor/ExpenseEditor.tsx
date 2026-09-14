@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/Avatar";
+import { Spinner } from "@/components/Spinner";
 import { ItemSheet } from "./ItemSheet";
 import { ChargeSheet } from "./ChargeSheet";
 import { PaymentSheet } from "./PaymentSheet";
@@ -182,6 +183,12 @@ export function ExpenseEditor({
           receiptPath: draft.receiptPath,
           data: { ...draft.data, settledPairs },
         });
+        // The editor is a full-screen overlay held open by the PARENT's local
+        // state (not by the URL) — router.push alone navigates the page
+        // behind it, but the overlay stays mounted on top unless we also
+        // close it, which looked like "nothing happened, still on the same
+        // page" even though the save succeeded.
+        onClose();
         router.push(`/g/${groupId}/expenses/${id}`);
         router.refresh();
       } catch (e) {
@@ -198,7 +205,7 @@ export function ExpenseEditor({
         </button>
         <div className="ttl">{existing ? "Edit expense" : "New expense"}</div>
         <button className="btn primary sm" onClick={handleSave} disabled={pending}>
-          Save
+          {pending ? <Spinner size={14} /> : "Save"}
         </button>
       </div>
       <div className="obody">

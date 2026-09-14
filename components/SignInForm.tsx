@@ -3,6 +3,7 @@
 import { useState, type SubmitEvent } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/client";
+import { Spinner } from "@/components/Spinner";
 
 // Email + password, not a magic link or emailed OTP code: Supabase's default
 // (no custom SMTP) shared email service doesn't allow editing templates to
@@ -113,7 +114,7 @@ export function SignInForm({ next = "/groups" }: { next?: string }) {
         />
       </label>
       <button className="btn primary block" type="submit" disabled={busy}>
-        {mode === "signin" ? "Sign in" : "Create account"}
+        {busy ? <Spinner size={16} /> : mode === "signin" ? "Sign in" : "Create account"}
       </button>
       {err && (
         <div className="banner bad" style={{ margin: "12px 0 0" }}>

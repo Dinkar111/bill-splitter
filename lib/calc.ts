@@ -55,6 +55,8 @@ export interface ExpensePayment {
   amount: number;
 }
 
+export type SettlementMode = "minimal" | "centralized";
+
 export interface ExpenseData {
   participants: string[];
   items: ExpenseItem[];
@@ -63,6 +65,12 @@ export interface ExpenseData {
   payments: ExpensePayment[];
   settledPairs?: string[];
   forceSettled?: boolean;
+  /** "minimal" (default): fewest possible transfers, greedy debtor/creditor
+   * matching. "centralized": every debtor pays `collectorId`, who then pays
+   * out anyone still owed money — mirrors a group where one person acts as
+   * the treasurer/collector instead of everyone settling peer-to-peer. */
+  settlementMode?: SettlementMode;
+  collectorId?: string | null;
 }
 
 export interface ExpenseLike {
@@ -185,6 +193,28 @@ export function minimizeSettlement(entries: { id: string; bal: number }[]): Sett
   return out;
 }
 
+/**
+ * Hub-and-spoke settlement: every debtor pays `collectorId` directly, and
+ * the collector pays out anyone else still owed money. More transfers than
+ * `minimizeSettlement`, but matches how many groups actually operate — one
+ * treasurer collects everything and forwards the rest, rather than friends
+ * settling with each other peer-to-peer.
+ *
+ * Reconciles exactly like the minimal version regardless of the collector's
+ * own balance: what the collector nets from incoming debts minus what they
+ * pay out to other creditors always equals their own true balance, as long
+ * as total balances sum to zero (i.e. payments fully cover the bill).
+ */
+export function centralizedSettlement(entries: { id: string; bal: number }[], collectorId: string): SettlementLeg[] {
+  const out: SettlementLeg[] = [];
+  for (const e of entries) {
+    if (e.id === collectorId || e.bal === 0) continue;
+    if (e.bal < 0) out.push({ from: e.id, to: collectorId, amount: -e.bal });
+    else out.push({ from: collectorId, to: e.id, amount: e.bal });
+  }
+  return out;
+}
+
 export function computeExpense(exp: ExpenseLike): ComputeResult {
   const d = exp?.data || ({} as ExpenseData);
   const parts = (d.participants || []).slice();
@@ -277,7 +307,11 @@ export function computeExpense(exp: ExpenseLike): ComputeResult {
   parts.forEach((p) => (per[p].balance = per[p].paid - per[p].final));
 
   // Step 10 — settlement
-  const settlement = minimizeSettlement(parts.map((p) => ({ id: p, bal: per[p].balance })));
+  const balances = parts.map((p) => ({ id: p, bal: per[p].balance }));
+  const settlement =
+    d.settlementMode === "centralized" && d.collectorId && parts.includes(d.collectorId)
+      ? centralizedSettlement(balances, d.collectorId)
+      : minimizeSettlement(balances);
 
   return {
     parts,

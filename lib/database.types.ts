@@ -52,6 +52,7 @@ export interface Database {
           group_id: string;
           code: string;
           created_by: string;
+          member_id: string | null;
           expires_at: string | null;
           revoked: boolean;
           created_at: string;
@@ -61,6 +62,7 @@ export interface Database {
           group_id: string;
           code: string;
           created_by: string;
+          member_id?: string | null;
           expires_at?: string | null;
           revoked?: boolean;
         };

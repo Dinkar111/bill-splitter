@@ -79,6 +79,10 @@ create table if not exists group_invites (
   group_id   uuid not null references groups(id) on delete cascade,
   code       text not null unique,
   created_by uuid not null references profiles(id),
+  -- NULL = generic "join this group" invite, always creates a new member.
+  -- Set = a personal invite for exactly this (usually unclaimed) member row;
+  -- redeeming it claims that row and only that row, never a different one.
+  member_id  uuid references group_members(id) on delete cascade,
   expires_at timestamptz,
   revoked    boolean not null default false,
   created_at timestamptz not null default now()
@@ -206,9 +210,12 @@ end;
 $$;
 
 -- ------------------------------------------------------------------
--- Invite redemption: validates the code and either inserts a fresh member
--- or claims an existing unclaimed row (same display name, no user_id),
--- atomically, so two people can't race into duplicate rows.
+-- Invite redemption: a PERSONAL invite (member_id set) claims exactly that
+-- member row and nothing else — it never guesses. A GENERIC invite
+-- (member_id null) always inserts a brand-new member row; it must NOT touch
+-- any existing unclaimed ("ghost") row, since there is no way to know which
+-- ghost, if any, the person redeeming it actually corresponds to. Runs
+-- atomically so two people can't race into duplicate/conflicting claims.
 -- ------------------------------------------------------------------
 
 create or replace function redeem_invite(p_code text)
@@ -216,7 +223,7 @@ returns uuid language plpgsql security definer set search_path = public as $$
 declare
   inv group_invites%rowtype;
   uname text;
-  existing_id uuid;
+  target_user_id uuid;
 begin
   select * into inv from group_invites where code = p_code and not revoked
     and (expires_at is null or expires_at > now());
@@ -230,13 +237,15 @@ begin
 
   select display_name into uname from profiles where id = auth.uid();
 
-  -- claim the oldest unclaimed (ghost) member row, if any, instead of duplicating
-  select id into existing_id from group_members
-    where group_id = inv.group_id and user_id is null
-    order by created_at asc limit 1;
-
-  if existing_id is not null then
-    update group_members set user_id = auth.uid() where id = existing_id;
+  if inv.member_id is not null then
+    select user_id into target_user_id from group_members where id = inv.member_id and group_id = inv.group_id;
+    if not found then
+      raise exception 'This invite is no longer valid — the member it was for was removed.';
+    end if;
+    if target_user_id is not null then
+      raise exception 'This invite has already been claimed.';
+    end if;
+    update group_members set user_id = auth.uid() where id = inv.member_id;
   else
     insert into group_members (group_id, user_id, display_name, role)
       values (inv.group_id, auth.uid(), coalesce(uname, 'New member'), 'member');

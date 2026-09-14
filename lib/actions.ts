@@ -42,12 +42,18 @@ export async function joinGroupByCode(code: string): Promise<string> {
   return data;
 }
 
-export async function createInvite(groupId: string) {
+/**
+ * `memberId` omitted: a generic "join this group" link — redeeming it always
+ * creates a brand-new member, never guesses an existing one.
+ * `memberId` given: a personal invite for exactly that (usually unclaimed)
+ * member row — redeeming it can only claim that row.
+ */
+export async function createInvite(groupId: string, memberId?: string) {
   const { supabase, user } = await requireUser();
   const code = inviteCode();
   const { error } = await supabase
     .from("group_invites")
-    .insert({ group_id: groupId, code, created_by: user.id });
+    .insert({ group_id: groupId, code, created_by: user.id, member_id: memberId || null });
   if (error) throw new Error(error.message);
   revalidatePath(`/g/${groupId}/members`);
   return code;

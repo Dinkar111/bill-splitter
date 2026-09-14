@@ -3,6 +3,7 @@
 import { useState, useTransition, type SubmitEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createGroup, joinGroupByCode } from "@/lib/actions";
+import { Spinner } from "@/components/Spinner";
 
 export function CreateOrJoinGroup() {
   const [mode, setMode] = useState<"create" | "join">("create");
@@ -60,7 +61,7 @@ export function CreateOrJoinGroup() {
           </label>
         )}
         <button className="btn primary block" type="submit" disabled={pending}>
-          {mode === "create" ? "Create group" : "Join group"}
+          {pending ? <Spinner size={16} /> : mode === "create" ? "Create group" : "Join group"}
         </button>
         {err && <div className="banner bad" style={{ margin: "12px 0 0" }}>{err}</div>}
       </form>

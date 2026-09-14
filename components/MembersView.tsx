@@ -6,6 +6,8 @@ import { Avatar } from "@/components/Avatar";
 import { computeExpense } from "@/lib/calc";
 import { currencySymbol, money } from "@/lib/format";
 import { addUnclaimedMember, createInvite, removeMember, revokeInvite } from "@/lib/actions";
+import { Spinner } from "@/components/Spinner";
+import { memberName } from "@/lib/format";
 import type { Expense, GroupInvite, GroupMember } from "@/lib/types";
 
 export function MembersView({
@@ -48,9 +50,9 @@ export function MembersView({
     setTimeout(() => setCopiedCode(null), 1500);
   }
 
-  function makeInvite() {
+  function makeInvite(memberId?: string) {
     startTransition(async () => {
-      const code = await createInvite(groupId);
+      const code = await createInvite(groupId, memberId);
       copyInvite(code);
       router.refresh();
     });
@@ -60,10 +62,14 @@ export function MembersView({
     <>
       <h2 style={{ fontFamily: "var(--f-display)", fontSize: 21, marginBottom: 12, display: "flex", alignItems: "center", gap: 10 }}>
         Members
-        <button className="btn primary sm" style={{ marginLeft: "auto" }} disabled={pending} onClick={makeInvite}>
-          + Invite link
+        <button className="btn primary sm" style={{ marginLeft: "auto" }} disabled={pending} onClick={() => makeInvite()}>
+          {pending ? <Spinner size={14} /> : "+ Invite link"}
         </button>
       </h2>
+      <p className="muted" style={{ margin: "-6px 0 12px" }}>
+        This link always creates a new member. To invite someone into an existing unclaimed slot below, use that
+        row&apos;s own invite link instead.
+      </p>
 
       {invites.length > 0 && (
         <div className="card pad" style={{ marginBottom: 14 }}>
@@ -72,9 +78,12 @@ export function MembersView({
           </div>
           {invites.map((inv) => (
             <div key={inv.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-              <code className="mono" style={{ flex: 1, fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                /invite/{inv.code}
-              </code>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <code className="mono" style={{ display: "block", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  /invite/{inv.code}
+                </code>
+                {inv.member_id && <span className="muted" style={{ fontSize: 11 }}>for {memberName(members, inv.member_id)}</span>}
+              </span>
               <button className="btn sm" onClick={() => copyInvite(inv.code)}>
                 {copiedCode === inv.code ? "Copied!" : "Copy"}
               </button>
@@ -114,6 +123,11 @@ export function MembersView({
               {balance >= 0 ? "+" : "−"}
               {money(Math.abs(balance))}
             </span>
+            {!member.user_id && (
+              <button className="btn sm" style={{ marginLeft: 8 }} disabled={pending} onClick={() => makeInvite(member.id)}>
+                Invite
+              </button>
+            )}
             {isOwner && (
               <button
                 className="btn sm danger"
@@ -150,7 +164,7 @@ export function MembersView({
             });
           }}
         >
-          Add
+          {pending ? <Spinner size={14} /> : "Add"}
         </button>
       </div>
       <p className="muted" style={{ marginTop: 8 }}>

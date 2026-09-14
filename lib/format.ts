@@ -38,12 +38,25 @@ export function todayISO() {
   return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
 }
 
+// Formatted by hand rather than with toLocaleDateString: the abbreviated
+// month name for the same locale ("Sep" vs "Sept") can differ between the
+// server's and the browser's ICU data, which is a real hydration mismatch
+// for any date rendered during SSR — a fixed table can't disagree with itself.
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function parseISODate(iso: string) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return { day: d, month: MONTHS[m - 1], year: y };
+}
+
 export function prettyDate(iso: string) {
-  return new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  const { day, month, year } = parseISODate(iso);
+  return `${day} ${month} ${year}`;
 }
 
 export function shortDate(iso: string) {
-  return new Date(iso + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  const { day, month } = parseISODate(iso);
+  return `${day} ${month}`;
 }
 
 export function memberName(members: { id: string; display_name: string }[], id: string) {

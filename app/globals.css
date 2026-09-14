@@ -253,3 +253,8 @@ textarea { min-height: 68px; resize: vertical; }
 .d-good { background: var(--receive); }
 .d-warn { background: var(--warn); }
 .d-bad { background: var(--owe); }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; }
+}

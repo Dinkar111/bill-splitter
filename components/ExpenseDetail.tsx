@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/Avatar";
+import { Spinner } from "@/components/Spinner";
 import { PersonBreakdownSheet } from "@/components/PersonBreakdownSheet";
 import { ExpenseEditor } from "@/components/expense-editor/ExpenseEditor";
 import { CHARGE_LABEL, computeExpense } from "@/lib/calc";
@@ -49,6 +50,38 @@ export function ExpenseDetail({
   function toggleForceSettled() {
     startTransition(async () => {
       await updateExpenseData(groupId, expense.id, { ...expense.data, forceSettled: !expense.data.forceSettled });
+      router.refresh();
+    });
+  }
+
+  function pruneStalePairs(data: typeof expense.data) {
+    const fresh = new Set(computeExpense({ data }).settlement.map((s) => `${s.from}>${s.to}`));
+    return (data.settledPairs || []).filter((p) => fresh.has(p));
+  }
+
+  function setSettlementMode(mode: "minimal" | "centralized") {
+    startTransition(async () => {
+      const next = {
+        ...expense.data,
+        settlementMode: mode,
+        collectorId:
+          mode === "centralized"
+            ? expense.data.collectorId && r.parts.includes(expense.data.collectorId)
+              ? expense.data.collectorId
+              : r.parts.slice().sort((a, b) => r.per[b].balance - r.per[a].balance)[0] || null
+            : expense.data.collectorId,
+      };
+      next.settledPairs = pruneStalePairs(next);
+      await updateExpenseData(groupId, expense.id, next);
+      router.refresh();
+    });
+  }
+
+  function setCollector(collectorId: string) {
+    startTransition(async () => {
+      const next = { ...expense.data, collectorId };
+      next.settledPairs = pruneStalePairs(next);
+      await updateExpenseData(groupId, expense.id, next);
       router.refresh();
     });
   }
@@ -149,9 +182,32 @@ export function ExpenseDetail({
           <div className="eyebrow" style={{ margin: "0 0 4px" }}>
             Settlement
           </div>
-          <p className="muted" style={{ marginBottom: 6 }}>
-            Fewest possible transfers. Tap ✓ once someone has paid.
-          </p>
+          <div className="seg" style={{ margin: "6px 0 8px" }}>
+            <button type="button" className={(expense.data.settlementMode || "minimal") === "minimal" ? "on" : ""} disabled={pending} onClick={() => setSettlementMode("minimal")}>
+              Minimize transfers
+            </button>
+            <button type="button" className={expense.data.settlementMode === "centralized" ? "on" : ""} disabled={pending} onClick={() => setSettlementMode("centralized")}>
+              Centralized
+            </button>
+          </div>
+          {expense.data.settlementMode === "centralized" ? (
+            <>
+              <p className="muted" style={{ marginBottom: 6 }}>
+                Everyone pays <b>{memberName(members, expense.data.collectorId || "")}</b>, who then pays out anyone else still owed. Tap ✓ once someone has paid.
+              </p>
+              <div className="chips" style={{ marginBottom: 10 }}>
+                {r.parts.map((p) => (
+                  <button key={p} type="button" className={`chip ${expense.data.collectorId === p ? "on" : ""}`} disabled={pending} onClick={() => setCollector(p)}>
+                    <Avatar id={p} name={memberName(members, p)} size="sm" /> {memberName(members, p).split(" ")[0]}
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className="muted" style={{ marginBottom: 6 }}>
+              Fewest possible transfers. Tap ✓ once someone has paid.
+            </p>
+          )}
           {r.settlement.length === 0 ? (
             <p className="muted">All square — nobody owes anyone.</p>
           ) : (
@@ -175,7 +231,7 @@ export function ExpenseDetail({
             })
           )}
           <button className="btn ghost sm block" style={{ marginTop: 10 }} disabled={pending} onClick={toggleForceSettled}>
-            {expense.data.forceSettled ? "Reopen expense" : "Mark whole expense settled"}
+            {pending ? <Spinner size={14} /> : expense.data.forceSettled ? "Reopen expense" : "Mark whole expense settled"}
           </button>
         </div>
 
@@ -239,7 +295,7 @@ export function ExpenseDetail({
             });
           }}
         >
-          Delete expense
+          {pending ? <Spinner size={14} /> : "Delete expense"}
         </button>
       </div>
 

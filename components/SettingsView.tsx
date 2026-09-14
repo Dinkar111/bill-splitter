@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ThemeSegmented } from "@/components/ThemeSegmented";
+import { Spinner } from "@/components/Spinner";
 import { deleteGroup, leaveGroup, renameGroup, renameMember, signOut } from "@/lib/actions";
 import type { Group, GroupMember } from "@/lib/types";
 
@@ -31,7 +32,7 @@ export function SettingsView({ group, membership }: { group: Group; membership: 
             disabled={pending || !myName.trim() || myName.trim() === membership.display_name}
             onClick={() => startTransition(async () => { await renameMember(group.id, membership.id, myName.trim()); router.refresh(); })}
           >
-            Save
+            {pending ? <Spinner size={14} /> : "Save"}
           </button>
         </div>
       </div>
@@ -65,7 +66,7 @@ export function SettingsView({ group, membership }: { group: Group; membership: 
             disabled={pending || !groupName.trim()}
             onClick={() => startTransition(async () => { await renameGroup(group.id, groupName.trim(), currency); router.refresh(); })}
           >
-            Save
+            {pending ? <Spinner size={14} /> : "Save"}
           </button>
           <button
             className="btn danger block"
@@ -79,7 +80,7 @@ export function SettingsView({ group, membership }: { group: Group; membership: 
               });
             }}
           >
-            Delete group
+            {pending ? <Spinner size={14} /> : "Delete group"}
           </button>
         </div>
       )}
@@ -97,7 +98,7 @@ export function SettingsView({ group, membership }: { group: Group; membership: 
               });
             }}
           >
-            Leave group
+            {pending ? <Spinner size={14} /> : "Leave group"}
           </button>
         </div>
       )}

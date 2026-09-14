@@ -4,7 +4,7 @@
  * Run with: npx tsx lib/calc.test.ts
  */
 import assert from "node:assert/strict";
-import { computeExpense, distribute, type ExpenseLike } from "./calc";
+import { computeExpense, distribute, type ExpenseData, type ExpenseLike } from "./calc";
 
 let failures = 0;
 function test(name: string, fn: () => void) {
@@ -111,6 +111,51 @@ test("settlement is minimal (at most people-1 transfers) and covers net balances
   assert.ok(r.settlement.length <= 4);
   const settledToDinkar = r.settlement.reduce((a, s) => (s.to === "dinkar" ? a + s.amount : a), 0);
   assert.equal(settledToDinkar, r.per.dinkar.balance);
+});
+
+test("centralized settlement: everyone routes through the collector, still reconciles", () => {
+  const base: ExpenseData = {
+    participants: ["dinkar", "rajat", "suyoj", "dipson", "sashank"],
+    items: [
+      { id: "i1", name: "Pizza", total: 1200, mode: "equal", people: ["dinkar", "rajat", "suyoj"] },
+      { id: "i2", name: "Burger", total: 500, mode: "equal", people: ["dipson"] },
+      { id: "i3", name: "Fries", total: 400, mode: "equal", people: ["dinkar", "rajat", "suyoj", "dipson", "sashank"] },
+      { id: "i4", name: "Coke", total: 150, mode: "equal", people: ["dinkar"] },
+      { id: "i5", name: "Beer", total: 600, mode: "equal", people: ["rajat", "sashank"] },
+    ],
+    discount: { mode: "percent", value: 20 },
+    charges: [
+      { id: "c1", name: "Service charge", kind: "service", mode: "percent", value: 10, basis: "before" },
+      { id: "c2", name: "VAT", kind: "vat", mode: "percent", value: 13, basis: "after" },
+    ],
+    // Suyoj also fronted some money, so more than one person is owed —
+    // exactly the case centralized mode needs to route correctly.
+    payments: [
+      { id: "p1", personId: "dinkar", amount: 2000 },
+      { id: "p2", personId: "suyoj", amount: 861.4 },
+    ],
+  };
+
+  const minimal = computeExpense({ data: base });
+  const centralized = computeExpense({ data: { ...base, settlementMode: "centralized", collectorId: "dinkar" } });
+
+  // Same totals and per-person balances either way — only the settlement legs differ.
+  assert.equal(centralized.totals.grandTotal, minimal.totals.grandTotal);
+  for (const p of centralized.parts) assert.equal(centralized.per[p].balance, minimal.per[p].balance);
+
+  // Every debtor pays the collector directly; every other creditor is paid BY the collector.
+  for (const leg of centralized.settlement) {
+    assert.ok(leg.from === "dinkar" || leg.to === "dinkar");
+  }
+  // Suyoj (a creditor other than the collector) is paid by Dinkar, not by individual debtors.
+  const toSuyoj = centralized.settlement.filter((s) => s.to === "suyoj");
+  assert.equal(toSuyoj.length, 1);
+  assert.equal(toSuyoj[0].from, "dinkar");
+  assert.equal(toSuyoj[0].amount, centralized.per.suyoj.balance);
+
+  // Collector's net (inflow from debtors − outflow to other creditors) still equals their true balance.
+  const net = centralized.settlement.reduce((a, s) => a + (s.to === "dinkar" ? s.amount : s.from === "dinkar" ? -s.amount : 0), 0);
+  assert.equal(net, centralized.per.dinkar.balance);
 });
 
 if (failures) {
