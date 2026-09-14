@@ -246,6 +246,11 @@ begin
       raise exception 'This invite has already been claimed.';
     end if;
     update group_members set user_id = auth.uid() where id = inv.member_id;
+    -- personal invites are single-use: once their one intended member is
+    -- claimed, the link is spent — revoke it so it stops showing as active.
+    -- Generic invites (member_id null) are left alone; they're meant to be
+    -- reusable for different new people.
+    update group_invites set revoked = true where id = inv.id;
   else
     insert into group_members (group_id, user_id, display_name, role)
       values (inv.group_id, auth.uid(), coalesce(uname, 'New member'), 'member');

@@ -79,10 +79,12 @@ export function MembersView({
           {invites.map((inv) => (
             <div key={inv.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
               <span style={{ flex: 1, minWidth: 0 }}>
-                <code className="mono" style={{ display: "block", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <span style={{ display: "block", fontWeight: 700, fontSize: 13.5 }}>
+                  {inv.member_id ? `For ${memberName(members, inv.member_id)}` : "General invite"}
+                </span>
+                <code className="mono muted" style={{ display: "block", fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   /invite/{inv.code}
                 </code>
-                {inv.member_id && <span className="muted" style={{ fontSize: 11 }}>for {memberName(members, inv.member_id)}</span>}
               </span>
               <button className="btn sm" onClick={() => copyInvite(inv.code)}>
                 {copiedCode === inv.code ? "Copied!" : "Copy"}
