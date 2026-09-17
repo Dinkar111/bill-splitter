@@ -49,3 +49,34 @@ export const getExpense = cache(async (supabase: DB, expenseId: string) => {
   const { data } = await supabase.from("expenses").select("*").eq("id", expenseId).maybeSingle();
   return data;
 });
+
+export interface KnownPerson {
+  /** The real account id if they have one, else a stable key for a ghost (unclaimed) name. */
+  key: string;
+  userId: string | null;
+  displayName: string;
+}
+
+/**
+ * Everyone the current user shares a group with, deduped — for picking
+ * people to add straight into a brand-new group instead of starting from
+ * scratch. Real accounts dedupe by user id; ghost (unclaimed) members dedupe
+ * by name, since they have no account to match on.
+ */
+export const getKnownPeople = cache(async (supabase: DB, userId: string): Promise<KnownPerson[]> => {
+  const { data: myGroups } = await supabase.from("group_members").select("group_id").eq("user_id", userId);
+  const groupIds = [...new Set((myGroups || []).map((m) => m.group_id))];
+  if (!groupIds.length) return [];
+
+  const { data: rows } = await supabase.from("group_members").select("*").in("group_id", groupIds);
+  const seen = new Set<string>();
+  const out: KnownPerson[] = [];
+  for (const m of rows || []) {
+    if (m.user_id === userId) continue; // that's you
+    const key = m.user_id || `ghost:${m.display_name.trim().toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ key, userId: m.user_id, displayName: m.display_name });
+  }
+  return out.sort((a, b) => a.displayName.localeCompare(b.displayName));
+});

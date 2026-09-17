@@ -25,13 +25,28 @@ export async function signOut() {
   redirect("/");
 }
 
+export interface ExtraMember {
+  /** Set for someone with a real account (added directly, no invite needed —
+   * owners can add anyone straight into their own group per the RLS policy).
+   * Null for a ghost/unclaimed name carried over as a fresh unclaimed member. */
+  userId: string | null;
+  displayName: string;
+}
+
 /** Returns the new group's id — the caller (client) navigates on success so
  * it can also show an error inline without fighting Next's redirect-in-try/catch gotcha. */
-export async function createGroup(name: string, currency: string): Promise<string> {
+export async function createGroup(name: string, currency: string, extraMembers: ExtraMember[] = []): Promise<string> {
   const { supabase } = await requireUser();
-  const { data, error } = await supabase.rpc("create_group", { p_name: name, p_currency: currency });
+  const { data: groupId, error } = await supabase.rpc("create_group", { p_name: name, p_currency: currency });
   if (error) throw new Error(error.message);
-  return data;
+
+  if (extraMembers.length) {
+    const rows = extraMembers.map((m) => ({ group_id: groupId, user_id: m.userId, display_name: m.displayName, role: "member" as const }));
+    const { error: memErr } = await supabase.from("group_members").insert(rows);
+    if (memErr) throw new Error(memErr.message);
+  }
+
+  return groupId;
 }
 
 /** Returns the joined group's id — see createGroup's note on why this doesn't redirect itself. */

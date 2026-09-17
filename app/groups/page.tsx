@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAuthedUser, supabaseServer } from "@/lib/supabase/server";
+import { getKnownPeople } from "@/lib/data";
 import { CreateOrJoinGroup } from "@/components/CreateOrJoinGroup";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { signOut } from "@/lib/actions";
@@ -19,6 +20,7 @@ export default async function GroupsPage() {
     ? await supabase.from("groups").select("id, name, currency_default").in("id", groupIds)
     : { data: [] };
   const groups = groupRows || [];
+  const knownPeople = await getKnownPeople(supabase, user.id);
 
   return (
     <div className="app-shell" style={{ padding: "18px 14px" }}>
@@ -64,7 +66,7 @@ export default async function GroupsPage() {
         </div>
       )}
 
-      <CreateOrJoinGroup />
+      <CreateOrJoinGroup knownPeople={knownPeople} />
     </div>
   );
 }

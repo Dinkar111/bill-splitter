@@ -2,25 +2,46 @@
 
 import { useState, useTransition, type SubmitEvent } from "react";
 import { useRouter } from "next/navigation";
-import { createGroup, joinGroupByCode } from "@/lib/actions";
+import { createGroup, joinGroupByCode, type ExtraMember } from "@/lib/actions";
 import { Spinner } from "@/components/Spinner";
+import { Avatar } from "@/components/Avatar";
+import type { KnownPerson } from "@/lib/data";
 
-export function CreateOrJoinGroup() {
+export function CreateOrJoinGroup({ knownPeople }: { knownPeople: KnownPerson[] }) {
   const [mode, setMode] = useState<"create" | "join">("create");
   const [name, setName] = useState("");
   const [currency, setCurrency] = useState("NPR");
   const [code, setCode] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [err, setErr] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+
+  function toggle(key: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
 
   function submit(e: SubmitEvent) {
     e.preventDefault();
     setErr(null);
     startTransition(async () => {
       try {
-        const groupId =
-          mode === "create" ? (name.trim() ? await createGroup(name.trim(), currency) : null) : code.trim() ? await joinGroupByCode(code.trim()) : null;
+        let groupId: string | null = null;
+        if (mode === "create") {
+          if (name.trim()) {
+            const extraMembers: ExtraMember[] = knownPeople
+              .filter((p) => selected.has(p.key))
+              .map((p) => ({ userId: p.userId, displayName: p.displayName }));
+            groupId = await createGroup(name.trim(), currency, extraMembers);
+          }
+        } else if (code.trim()) {
+          groupId = await joinGroupByCode(code.trim());
+        }
         if (groupId) router.push(`/g/${groupId}`);
       } catch (e) {
         setErr(e instanceof Error ? e.message : "Something went wrong.");
@@ -53,6 +74,26 @@ export function CreateOrJoinGroup() {
                 ))}
               </select>
             </label>
+            {knownPeople.length > 0 && (
+              <div className="field">
+                <span className="lb">
+                  Add people you already know <span className="muted">(optional)</span>
+                </span>
+                <div className="chips">
+                  {knownPeople.map((p) => (
+                    <button key={p.key} type="button" className={`chip ${selected.has(p.key) ? "on" : ""}`} onClick={() => toggle(p.key)}>
+                      <Avatar id={p.key} name={p.displayName} size="sm" /> {p.displayName}
+                    </button>
+                  ))}
+                </div>
+                {selected.size > 0 && (
+                  <p className="muted" style={{ marginTop: 6 }}>
+                    Anyone with an account is added straight in — no invite needed since you already share a group with them. Unclaimed names come along as
+                    unclaimed here too.
+                  </p>
+                )}
+              </div>
+            )}
           </>
         ) : (
           <label className="field">
