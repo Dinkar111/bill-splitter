@@ -4,7 +4,7 @@
  * Run with: npx tsx lib/calc.test.ts
  */
 import assert from "node:assert/strict";
-import { computeExpense, distribute, type ExpenseData, type ExpenseLike } from "./calc";
+import { computeExpense, distribute, remainingBalances, type ExpenseData, type ExpenseLike } from "./calc";
 
 let failures = 0;
 function test(name: string, fn: () => void) {
@@ -156,6 +156,31 @@ test("centralized settlement: everyone routes through the collector, still recon
   // Collector's net (inflow from debtors − outflow to other creditors) still equals their true balance.
   const net = centralized.settlement.reduce((a, s) => a + (s.to === "dinkar" ? s.amount : s.from === "dinkar" ? -s.amount : 0), 0);
   assert.equal(net, centralized.per.dinkar.balance);
+});
+
+test("remainingBalances: ticked-off legs stop counting; fully paid or force-settled nets to zero", () => {
+  const base: ExpenseData = {
+    participants: ["a", "b", "c"],
+    items: [{ id: "i1", name: "Dinner", total: 900, mode: "equal", people: ["a", "b", "c"] }],
+    discount: { mode: "none", value: 0 },
+    charges: [],
+    payments: [{ id: "p1", personId: "a", amount: 900 }],
+  };
+  const r = computeExpense({ data: base });
+  // a paid 900, owes 300 -> +600; b and c each owe 300.
+  assert.deepEqual(remainingBalances(base), { a: 60000, b: -30000, c: -30000 });
+
+  // b hands a their 300: b is square, a is still owed 300 (by c).
+  const legBToA = r.settlement.find((s) => s.from === "b")!;
+  const partial = remainingBalances({ ...base, settledPairs: [`${legBToA.from}>${legBToA.to}`] });
+  assert.deepEqual(partial, { a: 30000, b: 0, c: -30000 });
+
+  // Every leg ticked -> nobody owes anybody.
+  const all = remainingBalances({ ...base, settledPairs: r.settlement.map((s) => `${s.from}>${s.to}`) });
+  assert.deepEqual(all, { a: 0, b: 0, c: 0 });
+
+  // Marked settled outright -> contributes nothing to a group total.
+  assert.deepEqual(remainingBalances({ ...base, forceSettled: true }), { a: 0, b: 0, c: 0 });
 });
 
 if (failures) {

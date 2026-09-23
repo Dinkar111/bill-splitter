@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 import { getAuthedUser, supabaseServer } from "@/lib/supabase/server";
-import { getGroupExpenses, getMyMembership } from "@/lib/data";
-import { computeExpense } from "@/lib/calc";
+import { getGroupExpenses, getGroupMembers, getMyMembership } from "@/lib/data";
+import { computeExpense, remainingBalances } from "@/lib/calc";
 import { currencySymbol, money } from "@/lib/format";
 import { statusOf } from "@/lib/status";
 import { ExpenseRow } from "@/components/ExpenseRow";
+import { GroupSettlement, type CurrencyBalances } from "@/components/GroupSettlement";
 
 export default async function GroupHomePage({ params }: { params: Promise<{ groupId: string }> }) {
   const { groupId } = await params;
@@ -12,7 +13,11 @@ export default async function GroupHomePage({ params }: { params: Promise<{ grou
   if (!user) redirect("/");
   const supabase = await supabaseServer();
 
-  const [expenses, membership] = await Promise.all([getGroupExpenses(supabase, groupId), getMyMembership(supabase, groupId, user.id)]);
+  const [expenses, membership, members] = await Promise.all([
+    getGroupExpenses(supabase, groupId),
+    getMyMembership(supabase, groupId, user.id),
+    getGroupMembers(supabase, groupId),
+  ]);
   const meId = membership?.id || null;
   const currency = expenses[0]?.currency || "NPR";
 
@@ -20,19 +25,30 @@ export default async function GroupHomePage({ params }: { params: Promise<{ grou
   let owe = 0;
   let totalSpent = 0;
   let unsettled = 0;
+  // Money still outstanding per person, netted across every expense, kept per
+  // currency since different currencies can't be added together.
+  const outstanding = new Map<string, Record<string, number>>();
   for (const exp of expenses) {
     const r = computeExpense({ data: exp.data });
     totalSpent += r.totals.grandTotal;
     const status = statusOf(exp);
+    // "Remaining" (not raw) balances, so payments already ticked off inside an
+    // expense stop counting here — otherwise a half-settled expense would
+    // keep showing its full original amount.
+    const remaining = remainingBalances(exp.data);
+    const bucket = outstanding.get(exp.currency) ?? {};
+    for (const [id, v] of Object.entries(remaining)) bucket[id] = (bucket[id] || 0) + v;
+    outstanding.set(exp.currency, bucket);
     if (status !== "settled") {
       unsettled++;
       if (meId && exp.data.participants.includes(meId)) {
-        const b = r.per[meId].balance;
+        const b = remaining[meId];
         if (b > 0) owed += b;
         else owe += -b;
       }
     }
   }
+  const settlementBlocks: CurrencyBalances[] = [...outstanding].map(([cur, balances]) => ({ currency: cur, balances }));
 
   const hour = new Date().getHours();
   const greet = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
@@ -82,6 +98,8 @@ export default async function GroupHomePage({ params }: { params: Promise<{ grou
           </div>
         </div>
       </div>
+
+      {expenses.length > 0 && <GroupSettlement blocks={settlementBlocks} members={members} meId={meId} />}
 
       <div className="eyebrow">Recent expenses</div>
       {expenses.length === 0 ? (

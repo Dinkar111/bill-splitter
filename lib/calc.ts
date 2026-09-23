@@ -324,3 +324,24 @@ export function computeExpense(exp: ExpenseLike): ComputeResult {
     paymentGap: totalPaid - grandTotal,
   };
 }
+
+/**
+ * What each participant is STILL owed (+) or still owes (−) on one expense,
+ * after taking out settlement legs already ticked off as paid. This is what
+ * lets many expenses be netted together into one group-level settlement:
+ * a leg marked paid has already moved money, so it must not be counted again.
+ * `forceSettled` expenses contribute nothing.
+ */
+export function remainingBalances(data: ExpenseData): Record<string, number> {
+  const r = computeExpense({ data });
+  const bal: Record<string, number> = {};
+  r.parts.forEach((p) => (bal[p] = data.forceSettled ? 0 : r.per[p].balance));
+  if (data.forceSettled) return bal;
+  const done = new Set(data.settledPairs || []);
+  for (const leg of r.settlement) {
+    if (!done.has(`${leg.from}>${leg.to}`)) continue;
+    bal[leg.from] += leg.amount; // the payer's debt shrank
+    bal[leg.to] -= leg.amount; // the receiver's credit shrank
+  }
+  return bal;
+}

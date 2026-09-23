@@ -26,18 +26,20 @@ export function GroupChrome({ group, members, children }: { group: Group; member
           gap: 10,
         }}
       >
-        <Link href={`/g/${group.id}`}>
-          <div style={{ fontFamily: "var(--f-display)", fontSize: 22, letterSpacing: 1 }}>{group.name}</div>
-          <div className="muted" style={{ fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase" }}>
-            SplitTab
-          </div>
-        </Link>
-        <div style={{ display: "flex", gap: 8 }}>
-          <Link href="/groups" className="icon-btn" style={{ display: "grid", placeItems: "center", textDecoration: "none" }} aria-label="Switch group">
-            ⇄
+        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+          <Link href="/groups" className="icon-btn" style={{ display: "grid", placeItems: "center", textDecoration: "none" }} aria-label="Back to all groups">
+            ←
           </Link>
-          <ThemeToggle />
+          <Link href={`/g/${group.id}`} style={{ minWidth: 0 }}>
+            <div style={{ fontFamily: "var(--f-display)", fontSize: 22, letterSpacing: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {group.name}
+            </div>
+            <div className="muted" style={{ fontSize: 10, letterSpacing: "0.16em", textTransform: "uppercase" }}>
+              SplitTab
+            </div>
+          </Link>
         </div>
+        <ThemeToggle />
       </header>
 
       <main style={{ padding: "16px 14px 0" }}>{children}</main>
