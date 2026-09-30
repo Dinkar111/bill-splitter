@@ -5,7 +5,7 @@ import { computeExpense, remainingBalances } from "@/lib/calc";
 import { currencySymbol, money } from "@/lib/format";
 import { statusOf } from "@/lib/status";
 import { ExpenseRow } from "@/components/ExpenseRow";
-import { GroupSettlement, type CurrencyBalances } from "@/components/GroupSettlement";
+import { MyExpenseSettlements } from "@/components/MyExpenseSettlements";
 
 export default async function GroupHomePage({ params }: { params: Promise<{ groupId: string }> }) {
   const { groupId } = await params;
@@ -25,30 +25,22 @@ export default async function GroupHomePage({ params }: { params: Promise<{ grou
   let owe = 0;
   let totalSpent = 0;
   let unsettled = 0;
-  // Money still outstanding per person, netted across every expense, kept per
-  // currency since different currencies can't be added together.
-  const outstanding = new Map<string, Record<string, number>>();
   for (const exp of expenses) {
     const r = computeExpense({ data: exp.data });
     totalSpent += r.totals.grandTotal;
     const status = statusOf(exp);
-    // "Remaining" (not raw) balances, so payments already ticked off inside an
-    // expense stop counting here — otherwise a half-settled expense would
-    // keep showing its full original amount.
-    const remaining = remainingBalances(exp.data);
-    const bucket = outstanding.get(exp.currency) ?? {};
-    for (const [id, v] of Object.entries(remaining)) bucket[id] = (bucket[id] || 0) + v;
-    outstanding.set(exp.currency, bucket);
     if (status !== "settled") {
       unsettled++;
       if (meId && exp.data.participants.includes(meId)) {
-        const b = remaining[meId];
+        // "Remaining" (not raw) balance, so payments already ticked off
+        // inside an expense stop counting here — otherwise a half-settled
+        // expense would keep showing its full original amount.
+        const b = remainingBalances(exp.data)[meId];
         if (b > 0) owed += b;
         else owe += -b;
       }
     }
   }
-  const settlementBlocks: CurrencyBalances[] = [...outstanding].map(([cur, balances]) => ({ currency: cur, balances }));
 
   const hour = new Date().getHours();
   const greet = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
@@ -99,7 +91,7 @@ export default async function GroupHomePage({ params }: { params: Promise<{ grou
         </div>
       </div>
 
-      {expenses.length > 0 && <GroupSettlement blocks={settlementBlocks} members={members} meId={meId} />}
+      <MyExpenseSettlements groupId={groupId} expenses={expenses} members={members} meId={meId} />
 
       <div className="eyebrow">Recent expenses</div>
       {expenses.length === 0 ? (
